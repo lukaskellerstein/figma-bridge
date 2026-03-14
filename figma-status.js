@@ -1,16 +1,7 @@
-// Figma Status Panel — inject via mcp__design-playwright__browser_evaluate
-// Creates a persistent visual status panel in the Figma file showing:
-//   - Plugin version and connection status
-//   - Active agents/subagents and their progress
-//
-// Usage:
-//   1. Inject helpers.js first (required)
-//   2. Inject this file to create the status panel
-//   3. Call __figs.agent(id, name, status) to track agents
-//   4. Call __figs.done(id) when an agent finishes
-//   5. Call __figs.remove() to clean up when done
+// Figma Bridge — status panel for agent progress tracking
+// Auto-injected by background.js after figma-bridge.js
 
-// BRIDGE_VERSION is defined in figma-bridge.js (loaded first)
+if (window.__figs) { /* already injected */ } else {
 const STATUS_PANEL_NAME = '⚡ Claude Design Status';
 
 window.__figs = {
@@ -20,21 +11,21 @@ window.__figs = {
   // Create or update the status panel
   _render: async () => {
     // Remove old panel if exists
-    const old = figma.currentPage.findOne(n => n.name === STATUS_PANEL_NAME);
+    const old = __figb.f.currentPage.findOne(n => n.name === STATUS_PANEL_NAME);
     if (old) old.remove();
 
     // Also check all pages for old panels
-    for (const page of figma.root.children) {
+    for (const page of __figb.f.root.children) {
       const oldInPage = page.findOne(n => n.name === STATUS_PANEL_NAME);
       if (oldInPage) oldInPage.remove();
     }
 
-    await figma.loadFontAsync({ family: 'Inter', style: 'Regular' });
-    await figma.loadFontAsync({ family: 'Inter', style: 'Bold' });
-    await figma.loadFontAsync({ family: 'Inter', style: 'Medium' });
+    await __figb.f.loadFontAsync({ family: 'Inter', style: 'Regular' });
+    await __figb.f.loadFontAsync({ family: 'Inter', style: 'Bold' });
+    await __figb.f.loadFontAsync({ family: 'Inter', style: 'Medium' });
 
     // Panel container
-    const panel = figma.createFrame();
+    const panel = __figb.f.createFrame();
     panel.name = STATUS_PANEL_NAME;
     panel.resize(280, 10); // height auto
     panel.layoutMode = 'VERTICAL';
@@ -51,12 +42,12 @@ window.__figs = {
     panel.locked = true;
 
     // Position: top-right of viewport
-    const viewport = figma.viewport.bounds;
+    const viewport = __figb.f.viewport.bounds;
     panel.x = viewport.x + viewport.width - 300;
     panel.y = viewport.y + 20;
 
     // ── Header ──
-    const header = figma.createFrame();
+    const header = __figb.f.createFrame();
     header.name = 'Header';
     header.resize(280, 44);
     header.layoutMode = 'HORIZONTAL';
@@ -70,14 +61,14 @@ window.__figs = {
     panel.appendChild(header);
 
     // Status dot (green = connected)
-    const dot = figma.createEllipse();
+    const dot = __figb.f.createEllipse();
     dot.name = 'StatusDot';
     dot.resize(8, 8);
     dot.fills = [{ type: 'SOLID', color: { r: 0.2, g: 0.83, b: 0.6 } }]; // green
     header.appendChild(dot);
 
     // Title
-    const title = figma.createText();
+    const title = __figb.f.createText();
     title.characters = 'Claude Design';
     title.fontSize = 13;
     title.fontName = { family: 'Inter', style: 'Bold' };
@@ -86,7 +77,7 @@ window.__figs = {
     header.appendChild(title);
 
     // Version badge
-    const versionBadge = figma.createFrame();
+    const versionBadge = __figb.f.createFrame();
     versionBadge.name = 'Version';
     versionBadge.layoutMode = 'HORIZONTAL';
     versionBadge.primaryAxisSizingMode = 'AUTO';
@@ -99,8 +90,8 @@ window.__figs = {
     versionBadge.fills = [{ type: 'SOLID', color: { r: 0.23, g: 0.51, b: 0.96 } }]; // blue
     header.appendChild(versionBadge);
 
-    const versionText = figma.createText();
-    versionText.characters = `v${BRIDGE_VERSION}`;
+    const versionText = __figb.f.createText();
+    versionText.characters = `v${__figb.version}`;
     versionText.fontSize = 10;
     versionText.fontName = { family: 'Inter', style: 'Bold' };
     versionText.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];
@@ -112,7 +103,7 @@ window.__figs = {
     const activeCount = agents.filter(a => a.status !== 'done').length;
 
     // Agent header
-    const agentHeader = figma.createFrame();
+    const agentHeader = __figb.f.createFrame();
     agentHeader.name = 'AgentHeader';
     agentHeader.resize(280, 32);
     agentHeader.layoutMode = 'HORIZONTAL';
@@ -125,7 +116,7 @@ window.__figs = {
     agentHeader.fills = [];
     panel.appendChild(agentHeader);
 
-    const agentLabel = figma.createText();
+    const agentLabel = __figb.f.createText();
     agentLabel.characters = 'AGENTS';
     agentLabel.fontSize = 10;
     agentLabel.fontName = { family: 'Inter', style: 'Bold' };
@@ -135,7 +126,7 @@ window.__figs = {
     agentHeader.appendChild(agentLabel);
 
     // Count badge
-    const countBadge = figma.createFrame();
+    const countBadge = __figb.f.createFrame();
     countBadge.name = 'Count';
     countBadge.layoutMode = 'HORIZONTAL';
     countBadge.primaryAxisSizingMode = 'AUTO';
@@ -148,7 +139,7 @@ window.__figs = {
     countBadge.fills = [{ type: 'SOLID', color: activeCount > 0 ? { r: 0.2, g: 0.83, b: 0.6 } : { r: 0.3, g: 0.3, b: 0.4 } }];
     agentHeader.appendChild(countBadge);
 
-    const countText = figma.createText();
+    const countText = __figb.f.createText();
     countText.characters = `${activeCount} active`;
     countText.fontSize = 10;
     countText.fontName = { family: 'Inter', style: 'Medium' };
@@ -157,7 +148,7 @@ window.__figs = {
 
     // ── Agent Rows ──
     if (agentCount === 0) {
-      const emptyRow = figma.createFrame();
+      const emptyRow = __figb.f.createFrame();
       emptyRow.name = 'NoAgents';
       emptyRow.resize(280, 36);
       emptyRow.layoutMode = 'HORIZONTAL';
@@ -168,7 +159,7 @@ window.__figs = {
       emptyRow.fills = [];
       panel.appendChild(emptyRow);
 
-      const emptyText = figma.createText();
+      const emptyText = __figb.f.createText();
       emptyText.characters = 'No agents running';
       emptyText.fontSize = 12;
       emptyText.fontName = { family: 'Inter', style: 'Regular' };
@@ -176,7 +167,7 @@ window.__figs = {
       emptyRow.appendChild(emptyText);
     } else {
       for (const agent of agents) {
-        const row = figma.createFrame();
+        const row = __figb.f.createFrame();
         row.name = `Agent_${agent.id}`;
         row.resize(280, 10);
         row.layoutMode = 'HORIZONTAL';
@@ -204,14 +195,14 @@ window.__figs = {
           'error': { r: 0.94, g: 0.27, b: 0.27 },           // red
         };
 
-        const statusDot = figma.createEllipse();
+        const statusDot = __figb.f.createEllipse();
         statusDot.name = 'StatusDot';
         statusDot.resize(6, 6);
         statusDot.fills = [{ type: 'SOLID', color: statusColors[agent.status] || { r: 0.5, g: 0.5, b: 0.5 } }];
         row.appendChild(statusDot);
 
         // Agent info
-        const info = figma.createFrame();
+        const info = __figb.f.createFrame();
         info.name = 'Info';
         info.layoutMode = 'VERTICAL';
         info.primaryAxisSizingMode = 'AUTO';
@@ -221,14 +212,14 @@ window.__figs = {
         info.layoutGrow = 1;
         row.appendChild(info);
 
-        const nameText = figma.createText();
+        const nameText = __figb.f.createText();
         nameText.characters = agent.name;
         nameText.fontSize = 12;
         nameText.fontName = { family: 'Inter', style: 'Medium' };
         nameText.fills = [{ type: 'SOLID', color: { r: 0.9, g: 0.9, b: 0.95 } }];
         info.appendChild(nameText);
 
-        const statusText = figma.createText();
+        const statusText = __figb.f.createText();
         statusText.characters = agent.task || agent.status;
         statusText.fontSize = 10;
         statusText.fontName = { family: 'Inter', style: 'Regular' };
@@ -238,7 +229,7 @@ window.__figs = {
     }
 
     // ── Footer ──
-    const footer = figma.createFrame();
+    const footer = __figb.f.createFrame();
     footer.name = 'Footer';
     footer.resize(280, 28);
     footer.layoutMode = 'HORIZONTAL';
@@ -250,14 +241,14 @@ window.__figs = {
     footer.fills = [{ type: 'SOLID', color: { r: 0.06, g: 0.06, b: 0.1 } }];
     panel.appendChild(footer);
 
-    const footerText = figma.createText();
-    footerText.characters = `Figma Bridge v${BRIDGE_VERSION}`;
+    const footerText = __figb.f.createText();
+    footerText.characters = `Figma Bridge v${__figb.version}`;
     footerText.fontSize = 9;
     footerText.fontName = { family: 'Inter', style: 'Regular' };
     footerText.fills = [{ type: 'SOLID', color: { r: 0.35, g: 0.35, b: 0.45 } }];
     footer.appendChild(footerText);
 
-    figma.currentPage.appendChild(panel);
+    __figb.f.currentPage.appendChild(panel);
     __figs._panelId = panel.id;
 
     return `Status panel rendered: ${agentCount} agents (${activeCount} active)`;
@@ -309,7 +300,7 @@ window.__figs = {
 
   // Remove the status panel (cleanup when done)
   remove: () => {
-    for (const page of figma.root.children) {
+    for (const page of __figb.f.root.children) {
       const panel = page.findOne(n => n.name === STATUS_PANEL_NAME);
       if (panel) panel.remove();
     }
@@ -320,15 +311,11 @@ window.__figs = {
 
   // Get current status as data
   info: () => ({
-    version: BRIDGE_VERSION,
+    version: __figb.version,
     agents: Object.values(__figs._agents),
     activeCount: Object.values(__figs._agents).filter(a => a.status !== 'done').length,
   }),
 };
 
-// Auto-initialize on injection (only on Figma pages)
-if (typeof figma !== 'undefined') {
-  (async () => { await __figs.init(); })();
-}
-
-'__figs injected — v' + BRIDGE_VERSION
+'__figs injected';
+} // end guard
