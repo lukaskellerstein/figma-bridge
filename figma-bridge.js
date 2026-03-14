@@ -1,13 +1,8 @@
-// Figma Helper Library — inject via mcp__design-playwright__browser_evaluate
-// Read this file with the Read tool, then inject the contents into the browser.
-//
-// Usage:
-//   1. Read this file: Read → .../scripts/helpers.js
-//   2. Inject: mcp__design-playwright__browser_evaluate → (file contents)
-//   3. All subsequent scripts can use __figb.* helpers
-//
-// This cuts script length by ~60% and standardizes all Figma operations.
+// Figma Bridge — helper library for Figma Plugin API
+// Auto-injected by background.js via chrome.scripting.executeScript
+// All subsequent scripts can use __figb.* helpers
 
+if (window.__figb) { /* already injected */ } else {
 const BRIDGE_VERSION = "2.5.0";
 
 window.__figb = {
@@ -730,3 +725,4 @@ window.__figb = {
 };
 
 "__figb v" + BRIDGE_VERSION + " injected";
+} // end guard

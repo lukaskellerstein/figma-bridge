@@ -1,16 +1,7 @@
-// Figma Status Panel — inject via mcp__design-playwright__browser_evaluate
-// Creates a persistent visual status panel in the Figma file showing:
-//   - Plugin version and connection status
-//   - Active agents/subagents and their progress
-//
-// Usage:
-//   1. Inject helpers.js first (required)
-//   2. Inject this file to create the status panel
-//   3. Call __figs.agent(id, name, status) to track agents
-//   4. Call __figs.done(id) when an agent finishes
-//   5. Call __figs.remove() to clean up when done
+// Figma Bridge — status panel for agent progress tracking
+// Auto-injected by background.js after figma-bridge.js
 
-// BRIDGE_VERSION is defined in figma-bridge.js (loaded first)
+if (window.__figs) { /* already injected */ } else {
 const STATUS_PANEL_NAME = '⚡ Claude Design Status';
 
 window.__figs = {
@@ -100,7 +91,7 @@ window.__figs = {
     header.appendChild(versionBadge);
 
     const versionText = __figb.f.createText();
-    versionText.characters = `v${BRIDGE_VERSION}`;
+    versionText.characters = `v${__figb.version}`;
     versionText.fontSize = 10;
     versionText.fontName = { family: 'Inter', style: 'Bold' };
     versionText.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];
@@ -251,7 +242,7 @@ window.__figs = {
     panel.appendChild(footer);
 
     const footerText = __figb.f.createText();
-    footerText.characters = `Figma Bridge v${BRIDGE_VERSION}`;
+    footerText.characters = `Figma Bridge v${__figb.version}`;
     footerText.fontSize = 9;
     footerText.fontName = { family: 'Inter', style: 'Regular' };
     footerText.fills = [{ type: 'SOLID', color: { r: 0.35, g: 0.35, b: 0.45 } }];
@@ -320,13 +311,11 @@ window.__figs = {
 
   // Get current status as data
   info: () => ({
-    version: BRIDGE_VERSION,
+    version: __figb.version,
     agents: Object.values(__figs._agents),
     activeCount: Object.values(__figs._agents).filter(a => a.status !== 'done').length,
   }),
 };
 
-// Auto-initialize on injection (only on Figma pages)
-// Auto-init disabled — __figb.f is set by background.js
-
-'__figs injected — v' + BRIDGE_VERSION
+'__figs injected';
+} // end guard

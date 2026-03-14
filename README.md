@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.png" alt="Figma Bridge Logo" width="400">
+</p>
+
 # Figma Bridge
 
 > A Chrome extension that auto-injects helper functions into Figma, enabling Claude Code to design directly in Figma through browser automation.
