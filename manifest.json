@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "Figma Bridge",
+  "version": "1.9.0",
+  "description": "Figma Bridge — auto-injects helper functions for Claude Code's Figma automation",
+  "content_scripts": [{
+    "matches": ["https://www.figma.com/*"],
+    "js": ["figma-bridge.js", "figma-status.js"],
+    "world": "MAIN",
+    "run_at": "document_idle"
+  }],
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  }
+}
