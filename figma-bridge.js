@@ -3,7 +3,7 @@
 // All subsequent scripts can use __figb.* helpers
 
 if (window.__figb) { /* already injected */ } else {
-const BRIDGE_VERSION = "2.5.0";
+const BRIDGE_VERSION = "3.0.0";
 
 window.__figb = {
 	version: BRIDGE_VERSION,
@@ -79,7 +79,14 @@ window.__figb = {
 		}
 		__figb._applyCommon(f, opts);
 		if (opts.parent) opts.parent.appendChild(f);
-		else __figb.f.currentPage.appendChild(f);
+		else {
+			__figb.f.currentPage.appendChild(f);
+			if (opts.autoPosition) {
+				const pos = __figb.freeSpot(f.width, f.height, opts.autoPosition === true ? {} : opts.autoPosition);
+				f.x = pos.x;
+				f.y = pos.y;
+			}
+		}
 		return f;
 	},
 
@@ -114,7 +121,14 @@ window.__figb = {
 		}
 		__figb._applyCommon(c, opts);
 		if (opts.parent) opts.parent.appendChild(c);
-		else __figb.f.currentPage.appendChild(c);
+		else {
+			__figb.f.currentPage.appendChild(c);
+			if (opts.autoPosition) {
+				const pos = __figb.freeSpot(c.width, c.height, opts.autoPosition === true ? {} : opts.autoPosition);
+				c.x = pos.x;
+				c.y = pos.y;
+			}
+		}
 		return c;
 	},
 
@@ -602,6 +616,165 @@ window.__figb = {
 		s.name = name;
 		s.effects = effects;
 		return s;
+	},
+
+	// ═══════════════════════════════════════════════════════════════════
+	// VARIABLES
+	// ═══════════════════════════════════════════════════════════════════
+
+	// Create a variable collection
+	varCollection: (name) => {
+		const c = __figb.f.variables.createVariableCollection(name);
+		return c;
+	},
+
+	// Create a variable (type: COLOR, FLOAT, STRING, BOOLEAN)
+	variable: (name, collectionId, type) => {
+		const v = __figb.f.variables.createVariable(name, collectionId, type);
+		return v;
+	},
+
+	// Set variable value for a mode
+	varSet: (variable, modeId, value) => {
+		variable.setValueForMode(modeId, value);
+	},
+
+	// Bind a variable to a node property
+	varBind: (node, field, variable) => {
+		node.setBoundVariable(field, variable);
+	},
+
+	// Create a variable alias (reference another variable)
+	varAlias: (variable, modeId, targetVariable) => {
+		variable.setValueForMode(modeId, {
+			type: "VARIABLE_ALIAS",
+			id: targetVariable.id,
+		});
+	},
+
+	// Add a mode to a collection
+	varAddMode: (collection, name) => collection.addMode(name),
+
+	// Rename a mode in a collection
+	varRenameMode: (collection, modeId, name) => {
+		collection.renameMode(modeId, name);
+	},
+
+	// Get all local variable collections
+	varCollections: () => __figb.f.variables.getLocalVariableCollections(),
+
+	// Get all local variables, optionally filtered by type
+	vars: (type) => {
+		const all = __figb.f.variables.getLocalVariables();
+		return type ? all.filter((v) => v.resolvedType === type) : all;
+	},
+
+	// Look up a variable by ID
+	varById: (id) => __figb.f.variables.getVariableById(id),
+
+	// ═══════════════════════════════════════════════════════════════════
+	// COMPONENT SETS & VARIANTS
+	// ═══════════════════════════════════════════════════════════════════
+
+	// Combine components into a component set (variants)
+	compSet: (components, parent) => {
+		const cs = __figb.f.combineAsVariants(
+			components,
+			parent || __figb.f.currentPage,
+		);
+		return cs;
+	},
+
+	// Create an instance from a component
+	instance: (component) => component.createInstance(),
+
+	// Swap the backing component of an instance
+	swapInstance: (instance, newComponent) => {
+		instance.swapComponent(newComponent);
+	},
+
+	// Set variant properties on an instance
+	setVariantProps: (instance, props) => {
+		instance.setProperties(props);
+	},
+
+	// ═══════════════════════════════════════════════════════════════════
+	// EXPORTING
+	// ═══════════════════════════════════════════════════════════════════
+
+	// Export node as PNG/SVG/JPG/PDF with optional scale
+	// Usage: await __figb.exportNode(node, { format: 'PNG', scale: 2 })
+	exportNode: async (node, opts = {}) => {
+		const settings = {
+			format: opts.format || "PNG",
+		};
+		if (opts.scale) settings.constraint = { type: "SCALE", value: opts.scale };
+		return node.exportAsync(settings);
+	},
+
+	// Export node as SVG string
+	// Usage: await __figb.exportSvg(node)
+	exportSvg: async (node) => {
+		const bytes = await node.exportAsync({ format: "SVG" });
+		return new TextDecoder().decode(bytes);
+	},
+
+	// ═══════════════════════════════════════════════════════════════════
+	// BOOLEAN OPERATIONS
+	// ═══════════════════════════════════════════════════════════════════
+
+	// Internal helper for boolean operations (DRY)
+	_boolOp: (op, nodes, parent) => {
+		if (!nodes || nodes.length < 2) {
+			throw new Error("Boolean operations require at least 2 nodes");
+		}
+		const boolNode = __figb.f.createBooleanOperation();
+		boolNode.booleanOperation = op;
+		for (const n of nodes) boolNode.appendChild(n);
+		(parent || __figb.f.currentPage).appendChild(boolNode);
+		return boolNode;
+	},
+
+	// Union shapes
+	union: (nodes, parent) => __figb._boolOp("UNION", nodes, parent),
+
+	// Subtract shapes
+	subtract: (nodes, parent) => __figb._boolOp("SUBTRACT", nodes, parent),
+
+	// Intersect shapes
+	intersect: (nodes, parent) => __figb._boolOp("INTERSECT", nodes, parent),
+
+	// Exclude shapes
+	exclude: (nodes, parent) => __figb._boolOp("EXCLUDE", nodes, parent),
+
+	// ═══════════════════════════════════════════════════════════════════
+	// POSITIONING
+	// ═══════════════════════════════════════════════════════════════════
+
+	// Find a free spot on the current page for a node of given dimensions.
+	// Returns {x, y} that won't overlap existing top-level nodes.
+	// Usage: const pos = __figb.freeSpot(1440, 900);
+	//        frame.x = pos.x; frame.y = pos.y;
+	// opts.gap — spacing between frames (default 100)
+	// opts.direction — 'horizontal' (default) or 'vertical'
+	freeSpot: (w, h, opts = {}) => {
+		const gap = opts.gap ?? 100;
+		const dir = opts.direction || "horizontal";
+		const children = __figb.f.currentPage.children;
+		if (children.length === 0) return { x: 0, y: 0 };
+
+		let maxX = -Infinity;
+		let maxY = -Infinity;
+		let minY = Infinity;
+		let minX = Infinity;
+		for (const c of children) {
+			if (c.x + c.width > maxX) maxX = c.x + c.width;
+			if (c.y + c.height > maxY) maxY = c.y + c.height;
+			if (c.y < minY) minY = c.y;
+			if (c.x < minX) minX = c.x;
+		}
+		if (dir === "vertical") return { x: minX, y: maxY + gap };
+		return { x: maxX + gap, y: minY };
 	},
 
 	// ═══════════════════════════════════════════════════════════════════
