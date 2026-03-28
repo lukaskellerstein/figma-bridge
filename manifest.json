@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Figma Bridge",
-  "version": "3.1.0",
+  "version": "3.1.1",
   "description": "Figma Bridge — auto-injects helper functions for Claude Code's Figma automation",
   "permissions": [
     "scripting",

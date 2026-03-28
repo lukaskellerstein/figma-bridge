@@ -1,2 +1,0 @@
-[    2325ms] [WARNING] Statsig is not ready to log exposures, will retry in 1 seconds @ https://www.figma.com/webpack-artifacts/assets/vendor-core-83c17265f2588e9e.min.js.br:53
-[    2603ms] [ERROR] Failed to load resource: net::ERR_FAILED @ chrome-extension://invalid/:0

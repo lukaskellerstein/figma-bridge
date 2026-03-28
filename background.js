@@ -13,6 +13,12 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 
   setTimeout(async () => {
     try {
+      const existingTab = await chrome.tabs.get(tabId).catch(() => null);
+      if (!existingTab) {
+        injectedTabs.delete(tabId);
+        return;
+      }
+
       await chrome.scripting.executeScript({
         target: { tabId },
         world: 'MAIN',

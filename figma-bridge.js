@@ -895,6 +895,288 @@ window.__figb = {
 			issues,
 		};
 	},
+
+	// ═══════════════════════════════════════════════════════════════════
+	// HIGH-LEVEL DESIGN LANGUAGE BUILDERS
+	// ═══════════════════════════════════════════════════════════════════
+
+	// Determines whether text on a given hex background should be white or black
+	_contrastText: (hex) => {
+		const c = __figb.hex(hex);
+		const lum = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+		return lum > 0.4 ? __figb.hex("#000000") : __figb.hex("#FFFFFF");
+	},
+
+	// Build the Color Palette section — compact swatch grid + Paint Styles
+	// config: { themeBg, accentColor, textColor, textMuted, colors: [{name, hex}], parent }
+	// Returns: { node, paintStyles: [...] }
+	colorPalette: async (config) => {
+		const {
+			themeBg = "#0A0A0A", accentColor = "#3B82F6",
+			textColor = "#FFFFFF", textMuted = "#666666",
+			colors = [], parent,
+		} = config;
+		const section = __figb.frame("Section/Colors", {
+			w: 1440, direction: "VERTICAL", p: 48, gap: 24,
+			fill: __figb.hex(themeBg), parent,
+		});
+		await __figb.txt("01 — COLOR PALETTE", {
+			size: 12, style: "Semi Bold", fill: __figb.hex(accentColor),
+			letterSpacing: 2, textCase: "UPPER", parent: section,
+		});
+		await __figb.txt("Colors", {
+			size: 32, style: "Bold", fill: __figb.hex(textColor), parent: section,
+		});
+
+		const paintStyles = [];
+		// Chunk colors into rows of 9
+		for (let r = 0; r < colors.length; r += 9) {
+			const chunk = colors.slice(r, r + 9);
+			const row = __figb.frame(`SwatchRow-${r}`, {
+				direction: "HORIZONTAL", gap: 12, parent: section,
+			});
+			for (const c of chunk) {
+				const swatch = __figb.frame(`Swatch-${c.name}`, {
+					w: 80, h: 80, direction: "VERTICAL", mainAlign: "MAX", p: 8,
+					radius: 8, fill: __figb.hex(c.hex), parent: row,
+				});
+				await __figb.txt(c.hex.toUpperCase(), {
+					size: 10, fill: __figb._contrastText(c.hex), parent: swatch,
+				});
+				// Check if paint style already exists before creating
+				const existing = __figb.f.getLocalPaintStyles().find(s => s.name === c.name);
+				if (!existing) {
+					paintStyles.push(__figb.paintStyle(c.name, __figb.hex(c.hex)));
+				}
+			}
+		}
+		return { node: section, paintStyles };
+	},
+
+	// Build the Typography Scale section — one row per level + Text Styles
+	// config: { themeBg, accentColor, textColor, textMuted, font, typeScale: [{name, size, weight, lineHeight}], parent }
+	// Returns: { node, textStyles: [...] }
+	typographyScale: async (config) => {
+		const {
+			themeBg = "#0A0A0A", accentColor = "#3B82F6",
+			textColor = "#FFFFFF", textMuted = "#666666",
+			font = "Inter", typeScale = [], parent,
+		} = config;
+		const section = __figb.frame("Section/Typography", {
+			w: 1440, direction: "VERTICAL", p: 48, gap: 16,
+			fill: __figb.hex(themeBg), parent,
+		});
+		await __figb.txt("02 — TYPOGRAPHY", {
+			size: 12, style: "Semi Bold", fill: __figb.hex(accentColor),
+			letterSpacing: 2, textCase: "UPPER", parent: section,
+		});
+		await __figb.txt(`Type Scale — ${font}`, {
+			size: 32, style: "Bold", fill: __figb.hex(textColor), parent: section,
+		});
+
+		const textStyles = [];
+		for (const level of typeScale) {
+			const row = __figb.frame(`Type-${level.name}`, {
+				direction: "HORIZONTAL", gap: 24, crossAlign: "CENTER",
+				px: 0, py: 8, parent: section,
+			});
+			// Sample text in the showcased style
+			await __figb.txt(level.name, {
+				size: level.size, style: level.weight || "Regular", font,
+				fill: __figb.hex(textColor), parent: row,
+			});
+			// Spec annotation
+			const lh = level.lineHeight || Math.round(level.size * 1.4);
+			await __figb.txt(`${level.size}px / ${level.weight || "Regular"} / ${lh}`, {
+				size: 12, fill: __figb.hex(textMuted), parent: row,
+			});
+			// Create text style if not exists
+			const styleName = `Text/${level.name}`;
+			const existing = __figb.f.getLocalTextStyles().find(s => s.name === styleName);
+			if (!existing) {
+				textStyles.push(await __figb.textStyle(styleName, {
+					size: level.size, style: level.weight || "Regular", font,
+					lineHeight: lh,
+				}));
+			}
+		}
+		return { node: section, textStyles };
+	},
+
+	// Build the Effects section — shadow cards + border radius samples + Effect Styles
+	// config: { themeBg, accentColor, textColor, textMuted, surfaceColor,
+	//           shadows: [{name, x, y, blur, opacity}], radii: [4,8,12,...], parent }
+	// Returns: { node, effectStyles: [...] }
+	effectsSection: async (config) => {
+		const {
+			themeBg = "#0A0A0A", accentColor = "#3B82F6",
+			textColor = "#FFFFFF", textMuted = "#666666",
+			surfaceColor = "#1A1A1A",
+			shadows = [], radii = [], parent,
+		} = config;
+		const section = __figb.frame("Section/Effects", {
+			w: 1440, direction: "VERTICAL", p: 48, gap: 24,
+			fill: __figb.hex(themeBg), parent,
+		});
+		await __figb.txt("03 — EFFECTS & RADIUS", {
+			size: 12, style: "Semi Bold", fill: __figb.hex(accentColor),
+			letterSpacing: 2, textCase: "UPPER", parent: section,
+		});
+		await __figb.txt("Depth & Radius Scale", {
+			size: 32, style: "Bold", fill: __figb.hex(textColor), parent: section,
+		});
+
+		// Shadows row
+		const effectStyles = [];
+		if (shadows.length > 0) {
+			await __figb.txt("Shadows", {
+				size: 16, style: "Semi Bold", fill: __figb.hex(textColor), parent: section,
+			});
+			const shadowRow = __figb.frame("ShadowSamples", {
+				direction: "HORIZONTAL", gap: 24, parent: section,
+			});
+			for (const s of shadows) {
+				const fx = __figb.shadow(s.x || 0, s.y || 2, s.blur || 8, s.opacity || 0.15);
+				const card = __figb.frame(`Shadow-${s.name}`, {
+					w: 120, h: 80, direction: "VERTICAL", mainAlign: "CENTER",
+					crossAlign: "CENTER", radius: 8,
+					fill: __figb.hex(surfaceColor), effects: fx, parent: shadowRow,
+				});
+				await __figb.txt(s.name, {
+					size: 12, fill: __figb.hex(textMuted), parent: card,
+				});
+				const styleName = `Shadow/${s.name}`;
+				const existing = __figb.f.getLocalEffectStyles().find(e => e.name === styleName);
+				if (!existing) {
+					effectStyles.push(__figb.effectStyle(styleName, fx));
+				}
+			}
+		}
+
+		// Border radius row
+		if (radii.length > 0) {
+			await __figb.txt("Border Radius", {
+				size: 16, style: "Semi Bold", fill: __figb.hex(textColor), parent: section,
+			});
+			const radiusRow = __figb.frame("RadiusSamples", {
+				direction: "HORIZONTAL", gap: 16, parent: section,
+			});
+			for (const r of radii) {
+				const sample = __figb.frame(`Radius-${r}px`, {
+					w: 60, h: 60, direction: "VERTICAL", mainAlign: "CENTER",
+					crossAlign: "CENTER", radius: r,
+					fill: __figb.hex(surfaceColor),
+					strokes: [{ type: "SOLID", color: __figb.hex("#333333") }],
+					strokeWeight: 1, parent: radiusRow,
+				});
+				await __figb.txt(`${r}`, {
+					size: 11, fill: __figb.hex(textMuted), parent: sample,
+				});
+			}
+		}
+		return { node: section, effectStyles };
+	},
+
+	// Build the Spacing section — horizontal bar visualization
+	// config: { themeBg, accentColor, textColor, textMuted, spacing: [4,8,12,...], parent }
+	// Returns: { node }
+	spacingSection: async (config) => {
+		const {
+			themeBg = "#0A0A0A", accentColor = "#3B82F6",
+			textColor = "#FFFFFF", textMuted = "#666666",
+			spacing = [4, 8, 12, 16, 24, 32, 48, 64], parent,
+		} = config;
+		const section = __figb.frame("Section/Spacing", {
+			w: 1440, direction: "VERTICAL", p: 48, gap: 16,
+			fill: __figb.hex(themeBg), parent,
+		});
+		await __figb.txt("04 — SPACING", {
+			size: 12, style: "Semi Bold", fill: __figb.hex(accentColor),
+			letterSpacing: 2, textCase: "UPPER", parent: section,
+		});
+		await __figb.txt("4px Grid System", {
+			size: 32, style: "Bold", fill: __figb.hex(textColor), parent: section,
+		});
+
+		for (const val of spacing) {
+			const row = __figb.frame(`Space-${val}`, {
+				direction: "HORIZONTAL", gap: 12, crossAlign: "CENTER", parent: section,
+			});
+			await __figb.txt(`${val}px`, {
+				size: 12, fill: __figb.hex(textMuted), w: 48, parent: row,
+			});
+			__figb.rect({
+				w: Math.min(val * 4, 600), h: 16, radius: 4,
+				fill: __figb.hex(accentColor), parent: row,
+			});
+		}
+		return { node: section };
+	},
+
+	// Build a complete Design Language page — header + all sections
+	// config: {
+	//   projectName, subtitle, themeBg, accentColor, textColor, textMuted, surfaceColor,
+	//   colors: [{name, hex}],
+	//   font, typeScale: [{name, size, weight, lineHeight}],
+	//   spacing: [4,8,...],
+	//   shadows: [{name, x, y, blur, opacity}],
+	//   radii: [4,8,12,...],
+	// }
+	// Returns: { node, paintStyles, textStyles, effectStyles }
+	designLanguagePage: async (config) => {
+		const {
+			projectName = "Design Language", subtitle = "",
+			themeBg = "#0A0A0A", accentColor = "#3B82F6",
+			textColor = "#FFFFFF", textMuted = "#666666",
+			surfaceColor = "#1A1A1A",
+			font = "Inter",
+		} = config;
+
+		// Load fonts upfront
+		await __figb.fonts(
+			[font, "Regular"], [font, "Medium"],
+			[font, "Semi Bold"], [font, "Bold"],
+		);
+
+		// Create outer frame
+		const outer = __figb.frame("Design Language", {
+			w: 1440, direction: "VERTICAL", mainSize: "AUTO",
+			fill: __figb.hex(themeBg), autoPosition: true,
+		});
+
+		// Header banner
+		const header = __figb.frame("Section/Header", {
+			w: 1440, direction: "VERTICAL", p: 48, gap: 12,
+			gradient: __figb.gradient(themeBg, accentColor + "33"),
+			parent: outer,
+		});
+		await __figb.txt(`${projectName} — DESIGN LANGUAGE`, {
+			size: 12, style: "Semi Bold", fill: __figb.hex(accentColor),
+			letterSpacing: 2, textCase: "UPPER", parent: header,
+		});
+		await __figb.txt("Design Language", {
+			size: 40, style: "Bold", fill: __figb.hex(textColor), parent: header,
+		});
+		if (subtitle) {
+			await __figb.txt(subtitle, {
+				size: 16, fill: __figb.hex(textMuted), parent: header,
+			});
+		}
+
+		// Build each section
+		const shared = { themeBg, accentColor, textColor, textMuted, font, surfaceColor, parent: outer };
+		const colorsResult = await __figb.colorPalette({ ...shared, colors: config.colors || [] });
+		const typeResult = await __figb.typographyScale({ ...shared, typeScale: config.typeScale || [] });
+		const effectsResult = await __figb.effectsSection({ ...shared, shadows: config.shadows || [], radii: config.radii || [] });
+		const spacingResult = await __figb.spacingSection({ ...shared, spacing: config.spacing });
+
+		return {
+			node: outer,
+			paintStyles: colorsResult.paintStyles,
+			textStyles: typeResult.textStyles,
+			effectStyles: effectsResult.effectStyles,
+		};
+	},
 };
 
 "__figb v" + BRIDGE_VERSION + " injected";
